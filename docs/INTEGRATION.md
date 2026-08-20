@@ -13,16 +13,17 @@
 必须监听非回环地址，并受 Hyper-V firewall 控制：
 [WSL 网络官方说明](https://learn.microsoft.com/en-us/windows/wsl/networking)。
 
-当前 Qwen 服务仍保持安全默认值：
+当前 Qwen 服务已按用户确认启用可信局域网访问：
 
 ```text
-BIND_ADDRESS=127.0.0.1
+BIND_ADDRESS=0.0.0.0
 PUBLISH_PORT=18080
+LLAMA_API_KEY=已配置，不在文档或终端中显示
 ```
 
-因此当前只有本机能够访问。实测 `127.0.0.1:18080` 健康，而
-`192.168.31.114:18080` 从 LAN 路径访问会超时。另一台机器在完成“局域网直连”配置前不能使用
-该地址。
+Windows Hyper-V firewall 规则 `QwenLlamaCpp18080` 只放行 TCP `18080`，来源范围为
+`192.168.31.0/24`。同一子网内的可信机器可以通过 `192.168.31.114:18080` 访问；路由器不得
+配置公网端口转发。
 
 路由器通过 DHCP 分配的地址可能变化。若要长期接入，应在路由器中为本机设置 DHCP 地址保留，
 固定为 `192.168.31.114`，或者为调用方配置可解析且稳定的内网主机名。
@@ -31,7 +32,7 @@ PUBLISH_PORT=18080
 
 | 场景 | Base URL | API Key |
 | --- | --- | --- |
-| 本机普通进程 | `http://127.0.0.1:18080/v1` | 未启用认证时填 `local` |
+| 本机普通进程 | `http://127.0.0.1:18080/v1` | 当前必须使用真实 API Key |
 | 本机另一 Docker 项目 | `http://llama-server:8080/v1` | 与服务端配置一致 |
 | 局域网另一台机器 | `http://192.168.31.114:18080/v1` | 必须配置真实 API Key |
 
@@ -49,7 +50,7 @@ qwen3.8-27b-ud-iq3-xxs
 
 ```dotenv
 QWEN_BASE_URL=http://127.0.0.1:18080/v1
-QWEN_API_KEY=local
+QWEN_API_KEY=从服务端 .env 安全复制的真实密钥
 QWEN_MODEL=qwen3.8-27b-ud-iq3-xxs
 ```
 
@@ -128,7 +129,7 @@ networks:
 该方式仅适用于可信局域网，不要在路由器上设置公网端口转发。步骤需要在服务端和 Windows
 管理员 PowerShell 中分别完成。
 
-### 1. 确认另一台机器的局域网 IP
+### 1. 确认另一台机器位于允许的子网
 
 例如：
 
@@ -136,41 +137,44 @@ networks:
 192.168.31.50
 ```
 
-以下防火墙示例中的 `192.168.31.50` 必须替换为真实地址。最好也为调用方机器设置 DHCP 地址
-保留，否则它换 IP 后规则会失效。
+本机当前规则允许整个可信子网 `192.168.31.0/24`。如果只希望放行一台调用方，可以把规则的
+`RemoteAddresses` 收紧为该机器的固定地址，例如 `192.168.31.50`；此时最好为调用方设置 DHCP
+地址保留，否则它换 IP 后规则会失效。
 
 ### 2. 在服务端生成并保存 API Key
 
-在本项目目录执行：
+在本项目目录执行以下命令。它会把监听地址设为 `0.0.0.0`，并在密钥为空时生成随机密钥；密钥
+只写入权限为 `0600` 的 `.env`，不会回显：
 
 ```bash
-openssl rand -hex 32
+./scripts/configure-access.py lan
 ```
 
-把输出值安全地保存到项目 `.env`，同时修改监听地址：
+结果等价于：
 
 ```dotenv
 BIND_ADDRESS=0.0.0.0
 PUBLISH_PORT=18080
-LLAMA_API_KEY=替换为刚生成的随机值
+LLAMA_API_KEY=自动生成或保留的真实密钥
 ```
 
-`.env` 必须保持 `0600` 权限。不要把真实值写入 `.env.example`、文档、Shell history 或 Git。
+需要配置调用方时，请在本机编辑器中打开 `.env`，安全复制 `LLAMA_API_KEY` 的值。不要把真实值
+写入 `.env.example`、文档、Shell history、聊天记录或 Git，也不要复制 `.env` 中的其他配置。
 
 ### 3. 创建精确的 WSL Hyper-V 入站规则
 
-本机使用 WSL mirrored networking 且 `firewall=true`。在“以管理员身份运行”的 Windows
-PowerShell 中执行，限制为调用方机器和 TCP 18080：
+本机使用 WSL mirrored networking 且 `firewall=true`。当前已在“以管理员身份运行”的 Windows
+PowerShell 中创建以下规则，限制为当前可信子网和 TCP 18080：
 
 ```powershell
 New-NetFirewallHyperVRule `
   -Name "QwenLlamaCpp18080" `
-  -DisplayName "Qwen llama.cpp 18080 from trusted client" `
+  -DisplayName "Qwen llama.cpp 18080 from LAN" `
   -Direction Inbound `
   -VMCreatorId "{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}" `
   -Protocol TCP `
   -LocalPorts 18080 `
-  -RemoteAddresses "192.168.31.50"
+  -RemoteAddresses "192.168.31.0/24"
 ```
 
 微软的 `New-NetFirewallHyperVRule` 参数说明见

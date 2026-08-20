@@ -49,8 +49,22 @@ LLAMA_API_KEY=请替换为足够长的随机值
 Authorization: Bearer 请替换为相同值
 ```
 
-非 `127.0.0.1` 监听会被预检拒绝，除非同时设置 API Key。即使如此，局域网或公网访问仍应
-通过带 TLS、访问控制和限流的反向代理，不建议直接暴露 llama.cpp 端口。
+非 `127.0.0.1` 监听会被预检拒绝，除非同时设置 API Key。可信局域网可以在严格限制来源地址的
+防火墙后直连；公网、不可信网络或包含敏感数据的请求仍应使用 TLS、访问控制和限流，不能直接
+暴露 llama.cpp 端口。
+
+本项目提供不会回显密钥的切换命令：
+
+```bash
+# 启用局域网监听；LLAMA_API_KEY 为空时自动生成 64 位十六进制密钥
+./scripts/configure-access.py lan
+
+# 恢复仅本机监听；为避免意外破坏调用方，已有密钥会保留
+./scripts/configure-access.py local
+```
+
+切换后必须运行 `./scripts/start.sh` 和 `./scripts/smoke-test.sh`。局域网模式还必须配置宿主机
+防火墙；脚本不会自动更改 Windows、路由器或云防火墙。
 
 本机当前局域网地址、WSL Hyper-V firewall 和远程客户端配置见
 [其他项目与局域网机器接入指南](INTEGRATION.md)。

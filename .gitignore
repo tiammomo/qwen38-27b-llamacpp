@@ -1,0 +1,9 @@
+.env
+cache/*
+!cache/.gitkeep
+models/*.gguf
+models/*.part*
+models/*.assembled
+models/.download.lock
+__pycache__/
+*.pyc

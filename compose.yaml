@@ -1,0 +1,74 @@
+name: qwen38-27b-llamacpp
+
+services:
+  llama-server:
+    image: ${LLAMA_IMAGE}
+    container_name: qwen38-27b-iq3-xxs
+    init: true
+    restart: unless-stopped
+    user: "${RUNTIME_UID:-1000}:${RUNTIME_GID:-1000}"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+    shm_size: 1gb
+    gpus: all
+    environment:
+      HOME: /cache
+      CUDA_CACHE_PATH: /cache/cuda
+    volumes:
+      - ./models:/models:ro
+      - ./cache:/cache
+    ports:
+      - "127.0.0.1:${PUBLISH_PORT:-18081}:8080"
+    command:
+      - --model
+      - /models/${MODEL_FILE}
+      - --alias
+      - ${SERVED_MODEL_ID:-qwen3.8-27b-ud-iq3-xxs}
+      - --no-mmproj
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --cors-origins
+      - localhost
+      - --ctx-size
+      - ${CTX_SIZE:-131072}
+      - --parallel
+      - ${PARALLEL:-1}
+      - --n-predict
+      - ${N_PREDICT:-4096}
+      - --gpu-layers
+      - ${GPU_LAYERS:-all}
+      - --flash-attn
+      - "on"
+      - --cache-type-k
+      - ${CACHE_TYPE_K:-q4_0}
+      - --cache-type-v
+      - ${CACHE_TYPE_V:-q4_0}
+      - --batch-size
+      - ${BATCH_SIZE:-512}
+      - --ubatch-size
+      - ${UBATCH_SIZE:-128}
+      - --threads
+      - ${THREADS:-8}
+      - --threads-batch
+      - ${THREADS_BATCH:-16}
+      - --jinja
+      - --reasoning
+      - auto
+      - --reasoning-format
+      - deepseek
+      - --metrics
+      - --no-ui
+      - --offline
+      - --log-timestamps
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"
+    stop_grace_period: 2m

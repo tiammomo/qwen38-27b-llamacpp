@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-readonly PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+readonly PROJECT_DIR
 readonly ENV_FILE="$PROJECT_DIR/.env"
 
 fail() {
@@ -19,7 +21,8 @@ for command_name in curl docker flock nvidia-smi sha256sum stat; do
 done
 
 [[ -r "$ENV_FILE" ]] || fail "missing $ENV_FILE; run: cp .env.example .env"
-readonly ENV_MODE="$(stat -c '%a' "$ENV_FILE")"
+ENV_MODE="$(stat -c '%a' "$ENV_FILE")"
+readonly ENV_MODE
 (( (8#$ENV_MODE & 077) == 0 )) \
   || fail ".env is readable by group/others; run: chmod 600 .env"
 
@@ -60,7 +63,8 @@ fi
 
 docker info >/dev/null 2>&1 || fail "Docker Engine is unavailable"
 docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is unavailable"
-readonly DOCKER_RUNTIMES="$(docker info --format '{{json .Runtimes}}')"
+DOCKER_RUNTIMES="$(docker info --format '{{json .Runtimes}}')"
+readonly DOCKER_RUNTIMES
 [[ "$DOCKER_RUNTIMES" == *'"nvidia"'* ]] || fail "Docker NVIDIA runtime is unavailable"
 nvidia-smi >/dev/null 2>&1 || fail "NVIDIA driver is unavailable"
 
@@ -75,7 +79,8 @@ fi
 
 readonly MODEL_PATH="$PROJECT_DIR/models/$MODEL_FILE"
 if [[ ! -f "$MODEL_PATH" ]]; then
-  readonly AVAILABLE_BYTES="$(df --output=avail -B1 "$PROJECT_DIR/models" | tail -n 1 | tr -d '[:space:]')"
+  AVAILABLE_BYTES="$(df --output=avail -B1 "$PROJECT_DIR/models" | tail -n 1 | tr -d '[:space:]')"
+  readonly AVAILABLE_BYTES
   ((AVAILABLE_BYTES >= MODEL_SIZE_BYTES)) \
     || fail "insufficient disk space for $MODEL_FILE"
 fi

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-readonly PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+readonly PROJECT_DIR
 
 cd "$PROJECT_DIR"
 set -a
@@ -16,7 +18,8 @@ if [[ "$CLIENT_HOST" == "0.0.0.0" ]]; then
 fi
 readonly CLIENT_HOST
 readonly BASE_URL="http://${CLIENT_HOST}:${PUBLISH_PORT}"
-readonly RESPONSE_FILE="$(mktemp)"
+RESPONSE_FILE="$(mktemp)"
+readonly RESPONSE_FILE
 trap 'rm -f "$RESPONSE_FILE"' EXIT
 
 AUTH_ARGS=()

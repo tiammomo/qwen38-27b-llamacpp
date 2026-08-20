@@ -129,3 +129,6 @@ print(response.choices[0].message.content)
 
 宿主机程序可直接访问 `127.0.0.1:18080`。另一个 Docker 容器中的 `127.0.0.1` 指向该容器
 自身，因此需要加入合适的 Docker 网络或通过受控的宿主机网关访问，不能直接复制宿主机 URL。
+
+同机其他项目、Docker Compose 网络和局域网另一台机器的接入方式见
+[其他项目与局域网机器接入指南](INTEGRATION.md)。

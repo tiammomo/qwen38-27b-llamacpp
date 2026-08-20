@@ -107,7 +107,8 @@ JSON
 | Context | `131072` |
 | 建议单次最大输出 | `4096` |
 
-Python、流式输出、Thinking 和 API Key 用法见 [API 指南](docs/API.md)。
+Python、流式输出、Thinking 和 API Key 用法见 [API 指南](docs/API.md)。其他本机项目、Docker
+项目和局域网机器的完整接入步骤见 [接入指南](docs/INTEGRATION.md)。
 
 ## 配置原则
 

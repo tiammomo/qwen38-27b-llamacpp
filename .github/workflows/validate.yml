@@ -1,0 +1,18 @@
+name: validate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install --yes shellcheck
+      - name: Validate scripts and Compose
+        run: ./scripts/check.sh

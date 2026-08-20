@@ -75,7 +75,7 @@ def build_prompt(base_url: str, target_tokens: int, secret: str) -> tuple[str, i
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base-url", default="http://127.0.0.1:18081")
+    parser.add_argument("--base-url", default="http://127.0.0.1:18080")
     parser.add_argument("--target-tokens", type=int, required=True)
     parser.add_argument("--secret", required=True)
     parser.add_argument("--timeout", type=int, default=1800)

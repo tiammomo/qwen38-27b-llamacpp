@@ -1,4 +1,6 @@
 .env
+.env.*
+!.env.example
 cache/*
 !cache/.gitkeep
 models/*.gguf
@@ -7,3 +9,5 @@ models/*.assembled
 models/.download.lock
 __pycache__/
 *.pyc
+.pytest_cache/
+*.log

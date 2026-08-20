@@ -3,15 +3,37 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
-readonly MODEL_NAME="Qwen3.8-27B-UD-IQ3_XXS.gguf"
-readonly MODEL_REVISION="27af057ecb382ddfea5d12837360a8980560e3ed"
-readonly MODEL_URL="https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/${MODEL_REVISION}/${MODEL_NAME}"
-readonly EXPECTED_SIZE="10934860704"
-readonly EXPECTED_SHA256="c0b7c3038681ed2e3040456c1dd45f9858b6c2290bed172c70388a94874f3eee"
+readonly ENV_FILE="$PROJECT_DIR/.env"
+
+if [[ ! -r "$ENV_FILE" ]]; then
+  printf 'Missing %s; copy .env.example to .env first.\n' "$ENV_FILE" >&2
+  exit 1
+fi
+
+set -a
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+set +a
+
+: "${MODEL_REPOSITORY:?set MODEL_REPOSITORY in .env}"
+: "${MODEL_REVISION:?set MODEL_REVISION in .env}"
+: "${MODEL_FILE:?set MODEL_FILE in .env}"
+: "${MODEL_SIZE_BYTES:?set MODEL_SIZE_BYTES in .env}"
+: "${MODEL_SHA256:?set MODEL_SHA256 in .env}"
+
+readonly MODEL_NAME="$MODEL_FILE"
+readonly MODEL_URL="https://huggingface.co/${MODEL_REPOSITORY}/resolve/${MODEL_REVISION}/${MODEL_NAME}?download=true"
+readonly EXPECTED_SIZE="$MODEL_SIZE_BYTES"
+readonly EXPECTED_SHA256="$MODEL_SHA256"
 readonly MODEL_DIR="$PROJECT_DIR/models"
 readonly MODEL_PATH="$MODEL_DIR/$MODEL_NAME"
 readonly PART_PATH="$MODEL_PATH.part"
 readonly LOCK_PATH="$MODEL_DIR/.download.lock"
+
+if (($# > 1)) || [[ ${1:-} != "" && ${1:-} != "--verify-only" ]]; then
+  printf 'Usage: %s [--verify-only]\n' "$0" >&2
+  exit 2
+fi
 
 mkdir -p "$MODEL_DIR"
 exec 9>"$LOCK_PATH"
@@ -35,6 +57,11 @@ if [[ -f "$MODEL_PATH" ]]; then
     exit 0
   fi
   printf 'Existing final model failed verification; refusing to overwrite it.\n' >&2
+  exit 1
+fi
+
+if [[ ${1:-} == "--verify-only" ]]; then
+  printf 'Model is missing: %s\n' "$MODEL_PATH" >&2
   exit 1
 fi
 

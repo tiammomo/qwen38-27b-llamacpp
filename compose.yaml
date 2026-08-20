@@ -2,7 +2,7 @@ name: qwen38-27b-llamacpp
 
 services:
   llama-server:
-    image: ${LLAMA_IMAGE}
+    image: ${LLAMA_IMAGE:?set LLAMA_IMAGE in .env}
     container_name: qwen38-27b-iq3-xxs
     init: true
     restart: unless-stopped
@@ -18,16 +18,17 @@ services:
     environment:
       HOME: /cache
       CUDA_CACHE_PATH: /cache/cuda
+      LLAMA_API_KEY: ${LLAMA_API_KEY:-}
     volumes:
       - ./models:/models:ro
       - ./cache:/cache
     ports:
-      - "127.0.0.1:${PUBLISH_PORT:-18081}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${PUBLISH_PORT:-18080}:8080"
     command:
       - --model
-      - /models/${MODEL_FILE}
+      - /models/${MODEL_FILE:?set MODEL_FILE in .env}
       - --alias
-      - ${SERVED_MODEL_ID:-qwen3.8-27b-ud-iq3-xxs}
+      - ${SERVED_MODEL_ID:?set SERVED_MODEL_ID in .env}
       - --no-mmproj
       - --host
       - 0.0.0.0
@@ -66,6 +67,14 @@ services:
       - --no-ui
       - --offline
       - --log-timestamps
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 60
+      start_period: 30s
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
     logging:
       driver: json-file
       options:

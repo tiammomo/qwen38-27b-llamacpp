@@ -5,18 +5,31 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 import urllib.error
 import urllib.request
 
 
-def request_json(url: str, payload: dict | None = None, timeout: int = 30) -> dict:
+def redact(value: str, secret: str) -> str:
+    return value.replace(secret, "[redacted]") if secret else value
+
+
+def request_json(
+    url: str,
+    payload: dict | None = None,
+    timeout: int = 30,
+    api_key: str = "",
+) -> dict:
     data = None if payload is None else json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
     request = urllib.request.Request(
         url,
         data=data,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="GET" if data is None else "POST",
     )
     try:
@@ -24,19 +37,27 @@ def request_json(url: str, payload: dict | None = None, timeout: int = 30) -> di
             return json.load(response)
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"HTTP {exc.code} from {url}: {body[:2000]}") from exc
+        safe_url = redact(url, api_key)
+        safe_body = redact(body[:2000], api_key)
+        raise RuntimeError(f"HTTP {exc.code} from {safe_url}: {safe_body}") from exc
 
 
-def tokenize(base_url: str, content: str) -> int:
+def tokenize(base_url: str, content: str, api_key: str = "") -> int:
     response = request_json(
         f"{base_url}/tokenize",
         {"content": content, "add_special": False},
         timeout=300,
+        api_key=api_key,
     )
     return len(response["tokens"])
 
 
-def build_prompt(base_url: str, target_tokens: int, secret: str) -> tuple[str, int, int]:
+def build_prompt(
+    base_url: str,
+    target_tokens: int,
+    secret: str,
+    api_key: str = "",
+) -> tuple[str, int, int]:
     header = (
         "这是一个长上下文记忆测试。你必须记住下一行，后面的记录都与答案无关。\n"
         f"关键密钥：{secret}\n"
@@ -51,8 +72,10 @@ def build_prompt(base_url: str, target_tokens: int, secret: str) -> tuple[str, i
         f"无关记录{i:06d}：蓝色石头位于虚构仓库，编号与答案无关。\n"
         for i in range(256)
     )
-    fixed_tokens = tokenize(base_url, header + footer)
-    sample_tokens = tokenize(base_url, header + sample_lines + footer) - fixed_tokens
+    fixed_tokens = tokenize(base_url, header + footer, api_key)
+    sample_tokens = (
+        tokenize(base_url, header + sample_lines + footer, api_key) - fixed_tokens
+    )
     tokens_per_line = max(sample_tokens / 256, 1)
     line_count = max(1, int((target_tokens - fixed_tokens) / tokens_per_line))
 
@@ -64,7 +87,7 @@ def build_prompt(base_url: str, target_tokens: int, secret: str) -> tuple[str, i
             for i in range(line_count)
         )
         prompt = header + filler + footer
-        prompt_tokens = tokenize(base_url, prompt)
+        prompt_tokens = tokenize(base_url, prompt, api_key)
         delta = target_tokens - prompt_tokens
         if abs(delta) <= max(64, int(tokens_per_line * 2)):
             break
@@ -80,8 +103,9 @@ def main() -> int:
     parser.add_argument("--secret", required=True)
     parser.add_argument("--timeout", type=int, default=1800)
     args = parser.parse_args()
+    api_key = os.environ.get("LLAMA_API_KEY", "")
 
-    props = request_json(f"{args.base_url}/props", timeout=10)
+    props = request_json(f"{args.base_url}/props", timeout=10, api_key=api_key)
     context_size = props["default_generation_settings"]["n_ctx"]
     model_id = props["model_alias"]
     if args.target_tokens >= context_size:
@@ -96,7 +120,7 @@ def main() -> int:
     )
     build_started = time.monotonic()
     prompt, direct_prompt_tokens, line_count = build_prompt(
-        args.base_url, args.target_tokens, args.secret
+        args.base_url, args.target_tokens, args.secret, api_key
     )
     build_seconds = time.monotonic() - build_started
 
@@ -116,6 +140,7 @@ def main() -> int:
             "chat_template_kwargs": {"enable_thinking": False},
         },
         timeout=args.timeout,
+        api_key=api_key,
     )
     inference_seconds = time.monotonic() - inference_started
 

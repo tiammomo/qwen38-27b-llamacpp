@@ -17,6 +17,8 @@ for path in Path("scripts").glob("*.py"):
     ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
 PY
 
+python3 -m unittest discover -s tests -v
+
 if command -v shellcheck >/dev/null 2>&1; then
   shellcheck scripts/*.sh
 else

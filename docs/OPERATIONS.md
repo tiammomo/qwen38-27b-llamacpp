@@ -105,9 +105,14 @@ curl --fail http://127.0.0.1:18080/metrics
 
 ## 长上下文基准
 
-示例：
+脚本会从环境变量读取可选的 `LLAMA_API_KEY`。使用仓库的本机配置时，可以先导出 `.env` 中的变量，
+整个过程不会回显认证信息：
 
 ```bash
+set -a
+source .env
+set +a
+
 ./scripts/context-benchmark.py \
   --base-url http://127.0.0.1:18080 \
   --target-tokens 120000 \
